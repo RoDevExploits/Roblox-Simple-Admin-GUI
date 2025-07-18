@@ -1,0 +1,325 @@
+-- Cleanup
+pcall(function()
+    game.CoreGui:FindFirstChild("ModernAdminUI"):Destroy()
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local LP = Players.LocalPlayer
+local Character = LP.Character or LP.CharacterAdded:Wait()
+
+-- GUI Setup
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "ModernAdminUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 500, 0, 320)
+frame.Position = UDim2.new(0.5, -250, 0.5, -160)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.Active = true
+frame.Draggable = true
+frame.BorderSizePixel = 0
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local gradient = Instance.new("UIGradient", frame)
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 0, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 0, 160)),
+}
+gradient.Rotation = 45
+gradient.Transparency = NumberSequence.new(0.92)
+
+-- Topbar
+local topbar = Instance.new("Frame", frame)
+topbar.Size = UDim2.new(1, 0, 0, 40)
+topbar.BackgroundColor3 = Color3.fromRGB(20, 0, 30)
+topbar.BorderSizePixel = 0
+Instance.new("UICorner", topbar).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel", topbar)
+title.Size = UDim2.new(1, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "⚡ Modern Admin Panel"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 230, 255)
+title.TextSize = 22
+
+-- Sidebar Tabs
+local tabFrame = Instance.new("Frame", frame)
+tabFrame.Size = UDim2.new(0, 120, 1, -40)
+tabFrame.Position = UDim2.new(0, 0, 0, 40)
+tabFrame.BackgroundColor3 = Color3.fromRGB(25, 0, 40)
+tabFrame.BorderSizePixel = 0
+Instance.new("UICorner", tabFrame).CornerRadius = UDim.new(0, 10)
+
+-- Page Holder
+local pageFrame = Instance.new("Frame", frame)
+pageFrame.Size = UDim2.new(1, -130, 1, -50)
+pageFrame.Position = UDim2.new(0, 130, 0, 50)
+pageFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+pageFrame.BorderSizePixel = 0
+Instance.new("UICorner", pageFrame).CornerRadius = UDim.new(0, 10)
+
+-- Helper: Tab Button
+local function createTab(name, posY)
+    local b = Instance.new("TextButton", tabFrame)
+    b.Size = UDim2.new(1, -10, 0, 30)
+    b.Position = UDim2.new(0, 5, 0, posY)
+    b.Text = name
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 16
+    b.TextColor3 = Color3.fromRGB(230, 200, 255)
+    b.BackgroundColor3 = Color3.fromRGB(35, 0, 60)
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", b)
+    stroke.Color = Color3.fromRGB(170, 0, 255)
+    stroke.Thickness = 2
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    return b
+end
+
+-- Helper: Command Button
+local function createCmdButton(name, parent, posY)
+    local b = Instance.new("TextButton", parent)
+    b.Size = UDim2.new(0, 160, 0, 36)
+    b.Position = UDim2.new(0, 20, 0, posY)
+    b.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+    b.Text = name
+    b.Font = Enum.Font.GothamSemibold
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.TextSize = 16
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke", b)
+    stroke.Color = Color3.fromRGB(200, 0, 255)
+    stroke.Thickness = 2
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    return b
+end
+
+-- Pages
+local mainPage = Instance.new("Frame", pageFrame)
+mainPage.Size = UDim2.new(1, 0, 1, 0)
+mainPage.BackgroundTransparency = 1
+
+local otherPage = mainPage:Clone()
+otherPage.Parent = pageFrame
+
+-- Tab Switching
+local function showPage(page)
+    for _, v in pairs(pageFrame:GetChildren()) do
+        if v:IsA("Frame") then
+            v.Visible = false
+        end
+    end
+    page.Visible = true
+end
+showPage(mainPage)
+
+-- Create Tabs
+local mainTab = createTab("Main", 5)
+mainTab.MouseButton1Click:Connect(function() showPage(mainPage) end)
+
+local otherTab = createTab("Other", 45)
+otherTab.MouseButton1Click:Connect(function() showPage(otherPage) end)
+
+-- Fly System
+local flying = false
+local flyConn
+local function startFly()
+    local char = LP.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bv = Instance.new("BodyVelocity", hrp)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Velocity = Vector3.zero
+
+    local bg = Instance.new("BodyGyro", hrp)
+    bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    bg.CFrame = hrp.CFrame
+    bg.P = 9e4
+
+    local control = {F = 0, B = 0, L = 0, R = 0, U = 0, D = 0}
+    flyConn = UIS.InputBegan:Connect(function(input, g)
+        if g then return end
+        if input.KeyCode == Enum.KeyCode.W then control.F = 1 end
+        if input.KeyCode == Enum.KeyCode.S then control.B = 1 end
+        if input.KeyCode == Enum.KeyCode.A then control.L = 1 end
+        if input.KeyCode == Enum.KeyCode.D then control.R = 1 end
+        if input.KeyCode == Enum.KeyCode.Space then control.U = 1 end
+        if input.KeyCode == Enum.KeyCode.LeftShift then control.D = 1 end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.W then control.F = 0 end
+        if input.KeyCode == Enum.KeyCode.S then control.B = 0 end
+        if input.KeyCode == Enum.KeyCode.A then control.L = 0 end
+        if input.KeyCode == Enum.KeyCode.D then control.R = 0 end
+        if input.KeyCode == Enum.KeyCode.Space then control.U = 0 end
+        if input.KeyCode == Enum.KeyCode.LeftShift then control.D = 0 end
+    end)
+
+    local hum = char:FindFirstChildWhichIsA("Humanoid")
+    if hum then hum.PlatformStand = true end
+
+    while flying and char and hrp do
+        local cam = workspace.CurrentCamera
+        local move = cam.CFrame.LookVector * (control.F - control.B)
+                  + cam.CFrame.RightVector * (control.R - control.L)
+                  + Vector3.new(0, control.U - control.D, 0)
+        if move.Magnitude > 0 then
+            bv.Velocity = move.Unit * 60
+        else
+            bv.Velocity = Vector3.zero
+        end
+        bg.CFrame = cam.CFrame
+        task.wait()
+    end
+
+    bv:Destroy()
+    bg:Destroy()
+    if flyConn then flyConn:Disconnect() end
+    if hum then hum.PlatformStand = false end
+end
+
+-- Noclip Toggle
+local noclip = false
+game:GetService("RunService").Stepped:Connect(function()
+    if noclip then
+        local char = LP.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Commands
+local flyBtn = createCmdButton("Fly", mainPage, 10)
+flyBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    if flying then startFly() end
+end)
+
+local noclipBtn = createCmdButton("Noclip", mainPage, 60)
+noclipBtn.MouseButton1Click:Connect(function()
+    noclip = not noclip
+end)
+
+local resetBtn = createCmdButton("Reset", mainPage, 110)
+resetBtn.MouseButton1Click:Connect(function()
+    local character = LP.Character or LP.CharacterAdded:Wait()
+    local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+
+    if humanoid then
+        humanoid.Health = 0
+    else
+        -- fallback full reset if humanoid isn't found
+        LP:LoadCharacter()
+    end
+end)
+
+
+
+local speedBtn = createCmdButton("Speed Hack", mainPage, 160)
+local speedBox = Instance.new("TextBox", mainPage)
+speedBox.Size = UDim2.new(0, 80, 0, 36)
+speedBox.Position = UDim2.new(0, 190, 0, 160)
+speedBox.PlaceholderText = "WalkSpeed"
+speedBox.Text = ""
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.BackgroundColor3 = Color3.fromRGB(35, 0, 50)
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 16
+speedBox.ClearTextOnFocus = false
+speedBox.BorderSizePixel = 0
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 8)
+local sbStroke = Instance.new("UIStroke", speedBox)
+sbStroke.Color = Color3.fromRGB(200, 0, 255)
+sbStroke.Thickness = 2
+sbStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+speedBtn.MouseButton1Click:Connect(function()
+    local val = tonumber(speedBox.Text)
+    if val then
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = val end
+    end
+end)
+
+-- 👇 Append this at the bottom of your current script:
+
+-- Teleport to Player UI
+local tpDropdown = Instance.new("TextBox", otherPage)
+tpDropdown.Size = UDim2.new(0, 160, 0, 36)
+tpDropdown.Position = UDim2.new(0, 20, 0, 10)
+tpDropdown.PlaceholderText = "Player Name"
+tpDropdown.Text = ""
+tpDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpDropdown.BackgroundColor3 = Color3.fromRGB(35, 0, 50)
+tpDropdown.Font = Enum.Font.Gotham
+tpDropdown.TextSize = 16
+tpDropdown.ClearTextOnFocus = false
+tpDropdown.BorderSizePixel = 0
+Instance.new("UICorner", tpDropdown).CornerRadius = UDim.new(0, 8)
+local tpStroke = Instance.new("UIStroke", tpDropdown)
+tpStroke.Color = Color3.fromRGB(200, 0, 255)
+tpStroke.Thickness = 2
+tpStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local tpBtn = createCmdButton("Teleport", otherPage, 60)
+tpBtn.MouseButton1Click:Connect(function()
+    local name = tpDropdown.Text
+    local target = Players:FindFirstChild(name)
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and hrp then
+        hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+    end
+end)
+
+-- ESP Toggle
+local espEnabled = false
+local function updateESP()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local existing = p.Character:FindFirstChild("ESPBox")
+            if existing then existing:Destroy() end
+
+            if espEnabled then
+                for _, part in pairs(p.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        local box = Instance.new("BoxHandleAdornment", part)
+                        box.Name = "ESPBox"
+                        box.Adornee = part
+                        box.ZIndex = 10
+                        box.AlwaysOnTop = true
+                        box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+                        box.Transparency = 0.7
+                        box.Color3 = Color3.fromRGB(170, 0, 255)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local espBtn = createCmdButton("Toggle ESP", otherPage, 110)
+espBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    updateESP()
+end)
+
+-- Auto-refresh ESP when players spawn
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(1)
+        if espEnabled then updateESP() end
+    end)
+end)
